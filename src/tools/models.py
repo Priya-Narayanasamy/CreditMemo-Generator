@@ -69,7 +69,9 @@ def log_model_call(
         "purpose": purpose,
         "provider": provider,
         "model": model,
-        "temperature": TEMPERATURE,
+        # Null for Anthropic, which rejects sampling parameters. Recording a
+        # temperature that was never sent would misrepresent the call.
+        "temperature": TEMPERATURE if provider == "nebius" else None,
         "prompt": _redact(prompt if isinstance(prompt, str) else json.dumps(prompt, default=str)),
         "response": _redact(response if isinstance(response, str) else json.dumps(response, default=str)),
         "input_tokens": input_tokens,
@@ -173,9 +175,11 @@ def _anthropic(model: str):
 
     from langchain_anthropic import ChatAnthropic
 
+    # No `temperature`. The current Claude models reject sampling parameters and
+    # return a 400 if one is sent. See the note in config.py - determinism here
+    # comes from the ledger, not from the sampler.
     return ChatAnthropic(
         model=model,
-        temperature=TEMPERATURE,
         api_key=ANTHROPIC_API_KEY,
         timeout=120,
         max_retries=2,

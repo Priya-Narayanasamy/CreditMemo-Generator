@@ -24,10 +24,22 @@ CHECKPOINT_DB = ROOT / "checkpoints.sqlite"
 # Pinned version strings. Never inline a model name anywhere else.
 
 EXTRACTION_MODEL = "Qwen/Qwen2.5-72B-Instruct"          # Nebius Token Factory
-DRAFTING_MODEL = "claude-sonnet-4-5-20250929"           # Anthropic
-REVIEW_MODEL = "claude-sonnet-4-5-20250929"             # Anthropic
+DRAFTING_MODEL = "claude-opus-5"                        # Anthropic
+REVIEW_MODEL = "claude-opus-5"                          # Anthropic
 
+# Temperature zero, where the provider still accepts it.
+#
+# The current Claude models reject sampling parameters outright - passing
+# `temperature` to Opus 5 returns a 400. This setting therefore applies to the
+# Nebius extraction model only, and `src/tools/models.py` does not send it to
+# Anthropic.
+#
+# Nothing about determinism rests on it. Every figure in the memo comes from the
+# ledger, which is built by database reads and pure functions; the model's only
+# outputs are classification, extraction against a schema, source selection and
+# narrative prose. See tests/test_determinism.py.
 TEMPERATURE = 0
+ANTHROPIC_ACCEPTS_TEMPERATURE = False
 
 NEBIUS_API_KEY = os.getenv("NEBIUS_API_KEY", "")
 NEBIUS_BASE_URL = os.getenv("NEBIUS_BASE_URL", "https://api.studio.nebius.com/v1")
