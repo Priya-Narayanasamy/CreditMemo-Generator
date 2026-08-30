@@ -1,0 +1,31 @@
+{# Header block. Every value is a ledger lookup - `f()` raises if a key is absent. #}
+# Credit memo - first draft
+
+**Application** {{ application_number }}
+**Prepared** {{ generated_at }}
+**Policy ruleset** {{ policy_version }}
+**Status** First draft for analyst review. This memo consolidates the application
+file and records where sources disagree. It contains no assessment, rating or
+recommendation.
+
+## Facility
+
+| | |
+|---|---|
+| Loan purpose | {{ purpose_label }} |
+| Applicant structure | {{ structure_label }} |
+| Total loan amount | {{ money(f('total_loan_amount')) }} |
+| Security address | {{ f('security_address') }} |
+| Valuation | {{ money(f('valuation_amount')) }} as at {{ date(f('valuation_date')) }} |
+| Valuation age at lodgement | {{ f('valuation_age_days') }} days |
+| Lodgement date | {{ date(f('lodgement_date')) }} |
+| Loan to valuation ratio | {% if has('computed_lvr') %}{{ percent(f('computed_lvr')) }}{% else %}**Unresolved** - see outstanding items{% endif %} |
+| LVR recorded in the system of record | {{ percent(f('lvr_stated')) }} |
+
+### Loan splits
+
+| Split | Amount | Product | Term (months) |
+|---|---|---|---|
+{% for split in f('loan_splits') -%}
+| {{ split.split_number }} | {{ money(split.amount) }} | {{ product_label(split.product_type) }} | {{ split.term_months }} |
+{% endfor %}

@@ -1,0 +1,57 @@
+{# Serviceability, policy observations, documents and outstanding items. #}
+## Serviceability
+
+{% if has('computed_coverage_ratio') %}
+| | |
+|---|---|
+| Gross annual income across applicants | {{ money(f('computed_total_annual_income')) }} |
+| Scheduled annual repayments at the note rate | {{ money(f('computed_annual_repayments')) }} |
+| Assessment buffer applied | {{ buffer_label }} |
+| Assessed annual repayments | {{ money(f('computed_assessed_repayments')) }} |
+| Annual surplus | {{ money(f('computed_annual_surplus')) }} |
+| Income to outgoings coverage | {{ f('computed_coverage_ratio') }} |
+
+These are arithmetic figures produced from the sourced income and the policy
+ruleset's product rates. What they mean for this application is a matter for the
+analyst.
+{% else %}
+Serviceability has not been calculated. The income picture is incomplete, and a
+figure computed from part of it would look sourced without being so. See
+outstanding items.
+{% endif %}
+
+## Policy observations
+
+Rules are evaluated from the policy ruleset {{ policy_version }}. `Outside
+parameter` records that a figure sits outside a policy parameter; it is not a
+finding about the merits of the application.
+
+| Rule | Subject | Observed | Parameter | Status | Type |
+|---|---|---|---|---|---|
+{% for finding in policy_findings -%}
+| {{ finding.rule_id }} | {{ finding.subject or '-' }} | {{ finding.observed_value or '-' }} | {{ finding.parameter or '-' }} | {{ status_label(finding.status) }} | {{ finding.finding_type }} |
+{% endfor %}
+
+## Documents read
+
+| File | Identified as | Subject | Pages | Read |
+|---|---|---|---|---|
+{% for document in documents -%}
+| {{ document.filename }} | {{ document.document_type }} | {{ document.subject_name or '-' }} | {{ document.page_count or '-' }} | {{ 'yes' if document.parse_ok else 'no - ' ~ (document.parse_error or 'unreadable') }} |
+{% endfor %}
+
+## Outstanding items
+
+{% if unresolved %}
+The following could not be resolved from the file. Nothing in this memo supplies a
+value for them.
+
+{% for entry in unresolved -%}
+- **{{ entry.field_name }}** ({{ entry.reason }}){% if entry.conflicting_values %} - sources disagree:
+{% for value in entry.conflicting_values %}    - `{{ value.value }}` from {{ value.provenance.describe() }}
+{% endfor %}{% else %} - {{ entry.attempt_summary }}
+{% endif %}
+{% endfor %}
+{% else %}
+Every field required by this template resolved to a sourced value.
+{% endif %}

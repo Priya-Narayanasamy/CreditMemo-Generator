@@ -140,12 +140,21 @@ def permitted_figures(state: MemoState) -> set[str]:
     """
     allowed: set[str] = set()
 
+    def permit(text: str) -> None:
+        allowed.update(figures_in(text))
+        # "$585,000.00" also licenses "585,000" and "585000".
+        allowed.add(text.lstrip("$"))
+        allowed.add(text.replace(",", "").lstrip("$"))
+
     for name, item in state.ledger.items():
-        for text in (str(item.value), render_value(name, item.value)):
-            allowed.update(figures_in(text))
-            # "$585,000.00" also licenses "585,000" and "585000".
-            allowed.add(text.lstrip("$"))
-            allowed.add(text.replace(",", "").lstrip("$"))
+        permit(str(item.value))
+        permit(render_value(name, item.value))
+        permit(_percent_form(item.value))
+
+        # A list-valued entry - loan splits, credit accounts, related parties -
+        # licenses the figures inside it. They are as sourced as the entry is.
+        for figure in _nested_figures(item.value):
+            permit(figure)
 
     # Counts of things the memo may legitimately state about itself.
     for count in (
@@ -160,6 +169,48 @@ def permitted_figures(state: MemoState) -> set[str]:
         allowed.add(str(count))
 
     return {value for value in allowed if value}
+
+
+def _percent_form(value) -> str:
+    """A ratio in the ledger licenses its percentage rendering.
+
+    The memo shows an LVR of 0.7500 as 75.00%. That is the same sourced figure
+    written the way a reader expects, not a new one.
+    """
+    from decimal import Decimal, InvalidOperation
+
+    try:
+        ratio = Decimal(str(value))
+    except (InvalidOperation, ValueError, TypeError):
+        return ""
+    if not (0 <= ratio <= 1):
+        return ""
+    return f"{ratio * 100:.2f}"
+
+
+def _nested_figures(value) -> list[str]:
+    """Figures inside a list- or dict-valued ledger entry."""
+    found: list[str] = []
+
+    if isinstance(value, dict):
+        for nested in value.values():
+            found.extend(_nested_figures(nested))
+    elif isinstance(value, (list, tuple)):
+        for nested in value:
+            found.extend(_nested_figures(nested))
+    elif value is not None and not isinstance(value, bool):
+        text = str(value)
+        found.append(text)
+        if isinstance(value, int):
+            found.append(format_cents_safe(value))
+
+    return found
+
+
+def format_cents_safe(value: int) -> str:
+    from src.tools.calculators import format_cents
+
+    return format_cents(value)
 
 
 def unsourced_figures(state: MemoState, sections: dict[str, str]) -> list[tuple[str, str]]:

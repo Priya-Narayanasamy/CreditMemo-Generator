@@ -1,0 +1,54 @@
+{# Per-borrower blocks. Rendered once for a single applicant, twice for joint. #}
+## Applicants
+
+{% for n in borrower_positions %}
+### Applicant {{ n }}{% if borrower_count > 1 %} of {{ borrower_count }}{% endif %}
+
+#### Application record
+
+| | |
+|---|---|
+| Name on the application record | {{ f('borrower_' ~ n ~ '_record_name') }} |
+| Date of birth on the record | {{ date(f('borrower_' ~ n ~ '_record_date_of_birth')) }} |
+| Residential address on the record | {{ f('borrower_' ~ n ~ '_record_address') }} |
+| Employer | {% if has('borrower_' ~ n ~ '_employer') %}{{ f('borrower_' ~ n ~ '_employer') }}{% else %}**Not established from the file** |{% endif %} |
+
+#### Identity verification
+
+| Detail | Record | Supporting document | Outcome |
+|---|---|---|---|
+{% for row in verification_rows(n) -%}
+| {{ row.label }} | {{ row.record }} | {{ row.document }} | {{ row.outcome }} |
+{% endfor %}
+
+#### Credit history
+
+{% if has('borrower_' ~ n ~ '_credit_score') %}
+| | |
+|---|---|
+| Credit score | {{ f('borrower_' ~ n ~ '_credit_score') }} ({{ f('borrower_' ~ n ~ '_credit_score_band') }}) |
+| Enquiries in the last 6 months | {{ f('borrower_' ~ n ~ '_credit_enquiries_6m') }} |
+| Defaults listed | {{ f('borrower_' ~ n ~ '_credit_defaults_count') }} |
+| Report date | {{ date(f('borrower_' ~ n ~ '_credit_report_date')) }} |
+{% if has('borrower_' ~ n ~ '_credit_accounts') %}
+
+| Provider | Account type | Limit | Opened |
+|---|---|---|---|
+{% for account in f('borrower_' ~ n ~ '_credit_accounts') -%}
+| {{ account.provider }} | {{ account.account_type }} | {{ money(account.credit_limit) }} | {{ date(account.date_opened) }} |
+{% endfor %}
+{% endif %}
+{% else %}
+No credit report figures are available for this applicant. See outstanding items.
+{% endif %}
+
+#### Income
+
+{% if has('borrower_' ~ n ~ '_payg_income') %}
+Annualised PAYG income of {{ money(f('borrower_' ~ n ~ '_payg_income')) }}, from
+{{ income_source_count(n) }} payslips on file.
+{% else %}
+Annualised PAYG income has not been established for this applicant. No income
+figure is stated. See outstanding items.
+{% endif %}
+{% endfor %}

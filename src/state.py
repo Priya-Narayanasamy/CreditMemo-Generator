@@ -255,15 +255,35 @@ class MemoState(BaseModel):
 
     # --- ledger operations --------------------------------------------------
 
+    def analyst_resolved(self, field_name: str) -> bool:
+        item = self.ledger.get(field_name)
+        return item is not None and item.provenance.source_kind == "analyst"
+
     def record(self, field_name: str, value: Any, provenance: Provenance) -> EvidenceItem:
-        """Write a resolved value into the ledger and clear any gap against it."""
+        """Write a resolved value into the ledger and clear any gap against it.
+
+        A value the analyst supplied is never overwritten by the agent. Re-running
+        the evidence loop after an escalation must not quietly discard the
+        adjudication that let the run continue.
+        """
+        if self.analyst_resolved(field_name) and provenance.source_kind != "analyst":
+            return self.ledger[field_name]
+
         item = EvidenceItem(field_name=field_name, value=value, provenance=provenance)
         self.ledger[field_name] = item
         self.unresolved.pop(field_name, None)
         return item
 
-    def note_attempt(self, field_name: str, attempt: Attempt) -> UnresolvedField:
-        """Record an unsuccessful attempt against a field's own budget."""
+    def note_attempt(self, field_name: str, attempt: Attempt) -> UnresolvedField | None:
+        """Record an unsuccessful attempt against a field's own budget.
+
+        A field that is already resolved does not accrue attempts. A later pass
+        failing to find a value the ledger already holds - because the analyst
+        supplied it, or because an earlier source had it - is not a gap.
+        """
+        if field_name in self.ledger:
+            return None
+
         entry = self.unresolved.get(field_name)
         if entry is None:
             entry = UnresolvedField(field_name=field_name, reason="not_found")
@@ -280,8 +300,20 @@ class MemoState(BaseModel):
             entry.reason = "low_confidence"
         return entry
 
-    def record_conflict(self, field_name: str, values: list[EvidenceItem]) -> UnresolvedField:
-        """Two sources disagree. Straight to escalation, no retry budget consumed."""
+    def record_conflict(self, field_name: str, values: list[EvidenceItem]) -> UnresolvedField | None:
+        """Two sources disagree. Straight to escalation, no retry budget consumed.
+
+        A field the analyst has already adjudicated is left alone. Re-detecting the
+        same disagreement on a later pass must not undo their decision - it is
+        recorded in the trace instead.
+        """
+        if self.analyst_resolved(field_name):
+            self.trace.append(
+                f"{field_name}: sources still disagree, but the analyst-supplied value "
+                f"{self.ledger[field_name].value!r} stands."
+            )
+            return None
+
         entry = self.unresolved.get(field_name)
         if entry is None:
             entry = UnresolvedField(field_name=field_name, reason="conflict")

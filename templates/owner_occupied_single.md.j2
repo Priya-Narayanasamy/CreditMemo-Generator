@@ -1,0 +1,34 @@
+{# Owner-occupied lending, single applicant. #}
+{% include "_shared/header.md.j2" %}
+
+## File overview
+
+{{ narrative('file_overview') }}
+
+{% include "_shared/borrowers.md.j2" %}
+
+## Security
+
+Security is the applicant's intended place of residence at
+{{ f('security_address') }}, valued at {{ money(f('valuation_amount')) }} by
+valuation dated {{ date(f('valuation_date')) }}. The facility is
+{{ money(f('total_loan_amount')) }} across {{ f('loan_splits')|length }} split(s).
+
+{% include "_shared/findings.md.j2" %}
+
+## Risk observations
+
+These observations describe what the file contains. They do not weigh the
+application.
+
+{{ narrative('risk_observations') }}
+
+## For the analyst
+
+{% if narrative('outstanding_items') %}
+{{ narrative('outstanding_items') }}
+{% else %}
+- No outstanding items were recorded by the drafter.
+{% endif %}
+
+{% include "_shared/footer.md.j2" %}
