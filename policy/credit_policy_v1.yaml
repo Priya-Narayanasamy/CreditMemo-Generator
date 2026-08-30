@@ -1,0 +1,115 @@
+# Credit policy ruleset, version 1.
+#
+# Rules are data. No rule text is ever placed in a prompt, and no model decides
+# what a rule says or whether it is met - `src/tools/policy.py` evaluates these
+# deterministically.
+#
+# `finding_type` is the vocabulary used when a figure sits outside the parameter:
+# `discrepancy` for something the analyst must reconcile, `note` for something
+# recorded for their attention. A rule that cannot be evaluated because the
+# evidence is absent produces `missing`. No rule produces a pass, a fail, a grade
+# or a recommendation - the analyst forms the credit view.
+
+version: v1
+effective_from: 2026-01-01
+
+# Indicative product rates used to compute scheduled repayments. Decimal strings,
+# never floats.
+rates:
+  variable: "0.0629"
+  fixed_3yr: "0.0589"
+  interest_only: "0.0684"
+
+# Proportional uplift applied to the scheduled repayment when assessing
+# serviceability. Applied in exactly one place, in calculate_serviceability.
+assessment_rate_buffer: "0.30"
+
+rules:
+  - rule_id: LVR_MAX_OO
+    applies_to:
+      loan_purpose: owner_occupied
+    description: The policy parameter for owner-occupied lending is an LVR of 80% or less.
+    field: computed_lvr
+    operator: lte
+    threshold: "0.80"
+    finding_type: discrepancy
+
+  - rule_id: LVR_MAX_INV
+    applies_to:
+      loan_purpose: investment
+    description: The policy parameter for investment lending is an LVR of 75% or less.
+    field: computed_lvr
+    operator: lte
+    threshold: "0.75"
+    finding_type: discrepancy
+
+  - rule_id: LVR_AGREES_WITH_RECORD
+    description: >-
+      The calculated LVR should agree with the LVR recorded in the system of
+      record.
+    field: computed_lvr
+    operator: equals_field
+    compare_to: lvr_stated
+    tolerance: "0.0001"
+    finding_type: discrepancy
+
+  - rule_id: VALUATION_AGE_MAX_DAYS
+    description: The valuation should be no more than 90 days old at lodgement.
+    field: valuation_age_days
+    operator: lte
+    threshold: 90
+    finding_type: note
+
+  - rule_id: SERVICEABILITY_MIN_COVERAGE
+    description: >-
+      Assessed income should cover assessed outgoings at least 1.00 times, with
+      repayments uplifted by the assessment buffer.
+    field: computed_coverage_ratio
+    operator: gte
+    threshold: "1.00"
+    finding_type: discrepancy
+
+  - rule_id: MIN_CREDIT_SCORE
+    per_borrower: true
+    description: The policy parameter for a bureau credit score is 600 or above.
+    field: credit_score
+    operator: gte
+    threshold: 600
+    finding_type: discrepancy
+
+  - rule_id: MAX_ENQUIRIES_6M
+    per_borrower: true
+    description: >-
+      Six or fewer credit enquiries in the six months before the report date sits
+      within the policy parameter.
+    field: credit_enquiries_6m
+    operator: lte
+    threshold: 6
+    finding_type: note
+
+  - rule_id: NO_LISTED_DEFAULTS
+    per_borrower: true
+    description: Any default listed against a borrower is recorded for the analyst.
+    field: credit_defaults_count
+    operator: eq
+    threshold: 0
+    finding_type: note
+
+  - rule_id: MAX_INTEREST_ONLY_TERM_MONTHS
+    description: >-
+      An interest-only period of 60 months or less sits within the policy
+      parameter.
+    field: max_interest_only_term_months
+    operator: lte
+    threshold: 60
+    finding_type: note
+
+  - rule_id: IDENTITY_VERIFIED
+    per_borrower: true
+    description: >-
+      Name, date of birth and address in the supporting documents should agree
+      with the borrower record.
+    field: identity_verification_status
+    operator: eq
+    threshold: match
+    finding_type: discrepancy
