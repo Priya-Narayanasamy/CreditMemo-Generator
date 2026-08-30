@@ -90,8 +90,8 @@ If a task seems to require an assessment output, stop and ask rather than invent
 ```
 python data/generate_db.py        # rebuild the synthetic database
 python data/generate_docs.py      # rebuild the synthetic PDFs
-pytest                            # full test suite
-streamlit run app.py              # the UI
+python -m pytest                  # full test suite
+python -m streamlit run app.py    # the UI
 ```
 
 ## Working style

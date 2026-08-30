@@ -20,13 +20,18 @@ pip install -r requirements.txt
 copy .env.example .env          # then fill in the keys
 ```
 
+The commands below use `python -m` deliberately. On the Microsoft Store build of
+Python, console launchers such as `streamlit.exe` are installed into a sandboxed
+directory that is not on PATH, so a bare `streamlit run app.py` fails with
+"the term 'streamlit' is not recognized". Invoking the module works everywhere.
+
 ## Commands
 
 ```
 python data/generate_db.py        # rebuild the synthetic database
 python data/generate_docs.py      # rebuild the synthetic PDFs and defects.json
-pytest                            # full test suite
-streamlit run app.py              # the UI
+python -m pytest                  # full test suite
+python -m streamlit run app.py    # the UI
 ```
 
 ## How it works
