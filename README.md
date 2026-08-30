@@ -157,3 +157,58 @@ expectations from that file rather than hard-coding them.
 | 0006 | conflict | `lvr_stated` is 0.78; loan / valuation is 0.85 |
 | 0007 | unreadable | One credit report is a corrupt, unparseable PDF |
 | 0008 | conflict | Credit report subject DOB disagrees with the borrower record |
+
+## The agents
+
+```mermaid
+flowchart TD
+    A([Analyst selects an application]) --> E
+
+    E["Evidence agent<br/>reads the record and the documents,<br/>verifies identity across sources"]
+    N["Analysis agent<br/>evaluates the versioned policy ruleset"]
+    D["Drafting agent<br/>writes three narrative sections"]
+    R["Review agent<br/>checks every figure against the ledger"]
+    W["Render<br/>writes the .docx"]
+
+    ES{{"ESCALATION<br/>cannot proceed"}}
+    AP{{"APPROVAL<br/>asking permission to write"}}
+    X([Nothing written])
+
+    E -->|evidence complete| N
+    N --> D
+    D --> R
+    R -->|nothing to fix| AP
+    R -.->|must fix, up to 2 revisions| D
+
+    E -->|gap or conflict| ES
+    D -->|model unreachable| ES
+
+    ES -->|analyst supplies a value| E
+    ES -->|analyst abandons| X
+    AP -->|analyst approves| W
+    AP -->|analyst rejects| X
+
+    style ES fill:#ffe0e0,stroke:#c0392b
+    style AP fill:#fff3d6,stroke:#b8860b
+    style W fill:#e0f0e0,stroke:#2e7d32
+```
+
+Only the render node writes anything, and it sits behind the approval interrupt.
+Every other node reads.
+
+| Agent | Does | Never does |
+|---|---|---|
+| **Evidence** | Finds and reads sources, writes values into the ledger with provenance, compares identity details across sources | Estimates or infers a value it could not source |
+| **Analysis** | Evaluates the policy ruleset against the ledger, explains why a rule could not be evaluated | Computes a figure, or decides whether a parameter is met |
+| **Drafting** | Writes the three narrative sections from a brief containing only ledger values | States a figure that is not in the brief, or forms a credit view |
+| **Review** | Verifies every narrative figure exists in the ledger, flags assessment language and omissions | Rewrites the draft, or waves through an unsourced figure |
+
+The evidence agent is the only genuinely agentic node - it loops, choosing which
+source to try next for one unresolved field at a time. The model's job in that
+loop is narrow enough to test: given a field and the sources available, which
+source plausibly contains it. Everything else in the loop is deterministic.
+
+The two interrupts are kept as separate fields in state and never collapsed into
+one "waiting for a human" flag, because they mean opposite things. An escalation
+says the file is not complete enough to draft from. An approval says the draft is
+finished and a person must decide before anything is written.
