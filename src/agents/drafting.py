@@ -375,7 +375,34 @@ def drafting_node(
             f"  - {note}" for note in revision_notes
         )
 
-    sections = render_sections(drafter, brief)
+    try:
+        sections = render_sections(drafter, brief)
+    except Exception as exc:  # noqa: BLE001 - a model failure is a value, not an escape
+        # The evidence is gathered and sourced; only the narrative could not be
+        # written. That is worth telling the analyst plainly rather than crashing
+        # the run with a traceback, and the ledger is intact either way.
+        from src.state import Escalation
+
+        return {
+            "escalation": Escalation(
+                fields=["draft_sections"],
+                summary=(
+                    f"The narrative could not be drafted: {type(exc).__name__}."
+                ),
+                detail=(
+                    f"Evidence for {state.application_number} was gathered and every "
+                    f"figure is sourced - {len(state.ledger)} values are in the ledger. "
+                    f"The drafting model could not be reached, so no narrative was "
+                    f"written and no memo was produced.\n\n{exc}\n\n"
+                    f"Nothing has been written. Retry once the model is reachable, or "
+                    f"run without drafting credentials to use the offline drafter."
+                ),
+            ),
+            "trace": state.trace + [
+                f"Drafting failed with the {drafter.name} drafter: "
+                f"{type(exc).__name__}: {str(exc)[:200]}"
+            ],
+        }
 
     return {
         "draft_sections": sections,

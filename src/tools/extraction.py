@@ -24,7 +24,7 @@ import re
 from datetime import date, datetime
 from typing import Any, Literal, Protocol, runtime_checkable
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from src.tools.models import logged_call
 from src.tools.parsing import ParsedDoc
@@ -56,6 +56,24 @@ class ListedDefault(BaseModel):
     status: str | None = None
 
 
+def _drop_empty_records(records: list) -> list:
+    """Discard list entries in which every field came back null.
+
+    A model asked for a list of defaults will sometimes return one entry with
+    every field null rather than an empty list - a shape that says "none" while
+    counting as one. Left alone it becomes a default that does not exist, and it
+    reaches the memo carrying a provenance pointing at a document that says the
+    opposite.
+
+    Provenance cannot catch this: it records where a value came from, not whether
+    it is true. So the shape is rejected here, at the boundary.
+    """
+    return [
+        record for record in records
+        if any(value is not None for value in record.model_dump().values())
+    ]
+
+
 class EquifaxExtraction(BaseModel):
     """A bureau-style credit report."""
 
@@ -69,6 +87,11 @@ class EquifaxExtraction(BaseModel):
     enquiries_last_6_months: int | None = None
     listed_defaults: list[ListedDefault] = Field(default_factory=list)
     credit_accounts: list[CreditAccount] = Field(default_factory=list)
+
+    @field_validator("listed_defaults", "credit_accounts", mode="after")
+    @classmethod
+    def _no_empty_records(cls, records: list) -> list:
+        return _drop_empty_records(records)
 
 
 class KycExtraction(BaseModel):
@@ -311,19 +334,30 @@ class LocalTableExtractor:
 # --- Nebius extractor -------------------------------------------------------
 
 
-CLASSIFY_PROMPT = """You are classifying one document from a loan application file.
+CLASSIFY_PROMPT = """You are sorting one document from a loan application file into
+a category, so the right fields can be read from it.
 
-Reply with exactly one of these document types:
+Every document in this system is synthetic sample data. Each one carries a
+watermark and a disclaimer saying it is fictional, generated for testing, and not
+issued by any real institution. That is expected and correct, and it has no
+bearing on this task. Sort the document by its structure and content - what kind
+of document it is laid out as - not by whether it is genuine. A synthetic payslip
+is still a payslip for this purpose.
 
-- equifax: a consumer credit report from a credit bureau - credit score, enquiries,
-  listed defaults, credit accounts
-- kyc: an identity verification record - a subject's identity confirmed against
+The category names below are internal labels for this system. Choosing one is not
+a claim that the document is real or that any named institution issued it.
+
+- equifax: a consumer credit report, laid out bureau-style - a subject, a credit
+  score and band, enquiry counts, listed defaults, credit accounts
+- kyc: an identity verification record - a subject's identity checked against
   identification documents by a verifying officer
 - payslip: a PAYG payslip - an employer paying an employee for a pay period
-- unknown: anything else, or a document you cannot confidently place
+- unknown: a document whose structure matches none of the three above
 
-`unknown` is a correct and expected answer. Do not force a document into one of the
-other three types. Classify only from the content below.
+Reply `unknown` only when the document's structure genuinely does not match any of
+the three categories - never because the document is synthetic, watermarked, or
+carries a disclaimer. `unknown` remains a correct answer for a document that is
+truly something else.
 
 DOCUMENT
 --------

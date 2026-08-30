@@ -30,7 +30,23 @@ APP_SCRIPT = Path(__file__).resolve().parent.parent / "app.py"
 
 
 @pytest.fixture()
-def app(tmp_path, monkeypatch):
+def offline_credentials(monkeypatch):
+    """Force the UI onto the offline path.
+
+    app.py chooses real models whenever credentials are present, so without this
+    the UI tests hit the live API as soon as anyone fills in .env - turning a
+    fast, deterministic suite into a slow, costly and flaky one that depends on
+    the machine it runs on. AppTest re-executes app.py per run, so patching the
+    config module is enough.
+    """
+    import config
+
+    monkeypatch.setattr(config, "NEBIUS_API_KEY", "")
+    monkeypatch.setattr(config, "ANTHROPIC_API_KEY", "")
+
+
+@pytest.fixture()
+def app(tmp_path, monkeypatch, offline_credentials):
     # The app writes into ./output, so each test gets its own working directory.
     monkeypatch.chdir(tmp_path)
     return AppTest.from_file(str(APP_SCRIPT), default_timeout=TIMEOUT)
@@ -73,8 +89,7 @@ def test_nothing_is_shown_before_a_run(app):
     assert any("Choose an application" in element.value for element in app.info)
 
 
-def test_the_offline_banner_is_shown_without_credentials(app, monkeypatch):
-    monkeypatch.setattr("config.NEBIUS_API_KEY", "", raising=False)
+def test_the_offline_banner_is_shown_without_credentials(app):
     app.run()
 
     assert any("offline" in element.value.lower() for element in app.sidebar.warning)

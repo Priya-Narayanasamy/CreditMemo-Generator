@@ -266,3 +266,63 @@ def test_a_missing_application_escalates_rather_than_crashing(offline_graph):
 
     assert interrupt_type(state) == "ESCALATION"
     assert "does not exist" in state.escalation.detail
+
+
+# --- An unreachable drafting model ------------------------------------------
+
+
+class BrokenDrafter:
+    """Stands in for a model that is unreachable - expired credit, network, 500."""
+
+    name = "broken"
+
+    def _fail(self, brief):
+        raise RuntimeError("Error code: 400 - credit balance is too low")
+
+    file_overview = risk_observations = outstanding_items = _fail
+
+
+def test_an_unreachable_drafting_model_escalates_rather_than_crashing(offline_graph):
+    """A model failure is a value returned into state, not an exception escaping
+    the node. The analyst gets a readable escalation, not a traceback."""
+    from src.agents.drafting import drafting_node
+
+    offline_graph.drafting = lambda state: drafting_node(state, BrokenDrafter())
+    state = run(CLEAN, offline_graph)
+
+    assert interrupt_type(state) == "ESCALATION"
+    assert "could not be drafted" in state.escalation.summary
+    assert "credit balance" in state.escalation.detail
+
+
+def test_a_drafting_failure_keeps_the_evidence_it_gathered(offline_graph):
+    from src.agents.drafting import drafting_node
+
+    offline_graph.drafting = lambda state: drafting_node(state, BrokenDrafter())
+    state = run(CLEAN, offline_graph)
+
+    assert len(state.ledger) > 30, "the ledger survives a drafting failure"
+    assert state.policy_findings, "analysis ran before drafting"
+    assert str(len(state.ledger)) in state.escalation.detail
+
+
+def test_a_drafting_failure_writes_nothing(offline_graph):
+    from src.agents.drafting import drafting_node
+
+    offline_graph.drafting = lambda state: drafting_node(state, BrokenDrafter())
+    state = run(CLEAN, offline_graph)
+
+    assert state.rendered_path is None
+    assert state.approved_memo is None
+    assert "Nothing has been written" in state.escalation.detail
+    assert not offline_graph.output_dir.exists()
+
+
+def test_a_drafting_failure_does_not_reach_the_reviewer(offline_graph):
+    from src.agents.drafting import drafting_node
+
+    offline_graph.drafting = lambda state: drafting_node(state, BrokenDrafter())
+    state = run(CLEAN, offline_graph)
+
+    assert state.review_notes == [], "there is nothing to review"
+    assert state.draft_sections == {}

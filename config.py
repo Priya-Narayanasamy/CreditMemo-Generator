@@ -23,7 +23,12 @@ CHECKPOINT_DB = ROOT / "checkpoints.sqlite"
 # --- Models -----------------------------------------------------------------
 # Pinned version strings. Never inline a model name anywhere else.
 
-EXTRACTION_MODEL = "Qwen/Qwen2.5-72B-Instruct"          # Nebius Token Factory
+# Verified present on the Nebius Token Factory endpoint. Check with
+# `python -m scripts.preflight` before changing it - a model ID that does not
+# exist there fails as a 404 inside classification, which surfaces as every
+# document coming back `unknown` and every run escalating, rather than as an
+# obvious error.
+EXTRACTION_MODEL = "Qwen/Qwen3-30B-A3B-Instruct-2507"   # Nebius Token Factory
 DRAFTING_MODEL = "claude-opus-5"                        # Anthropic
 REVIEW_MODEL = "claude-opus-5"                          # Anthropic
 

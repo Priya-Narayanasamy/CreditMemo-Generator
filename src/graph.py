@@ -123,6 +123,9 @@ class MemoGraph:
     def after_evidence(self, state: MemoState) -> Literal["escalate", "analysis"]:
         return "escalate" if state.escalation is not None else "analysis"
 
+    def after_drafting(self, state: MemoState) -> Literal["escalate", "review"]:
+        return "escalate" if state.escalation is not None else "review"
+
     def after_review(self, state: MemoState) -> Literal["drafting", "approval"]:
         """Back to drafting while there is something that must be fixed and budget
         left to fix it.
@@ -174,7 +177,11 @@ class MemoGraph:
             "evidence", self.after_evidence, {"escalate": END, "analysis": "analysis"}
         )
         graph.add_edge("analysis", "drafting")
-        graph.add_edge("drafting", "review")
+        # Drafting can escalate too, when the model is unreachable. There is
+        # nothing for the reviewer to read in that case.
+        graph.add_conditional_edges(
+            "drafting", self.after_drafting, {"escalate": END, "review": "review"}
+        )
         graph.add_conditional_edges(
             "review", self.after_review, {"drafting": "drafting", "approval": "approval"}
         )

@@ -429,3 +429,54 @@ def test_reading_an_absent_log_returns_nothing(tmp_path, monkeypatch):
     monkeypatch.setattr("src.tools.models.MODEL_CALL_LOG", tmp_path / "absent.jsonl")
 
     assert read_call_log() == []
+
+
+# --- Empty-record rejection -------------------------------------------------
+
+
+def test_an_all_null_list_entry_is_dropped():
+    """A live model returned one entirely null default instead of an empty list
+    for a report reading "No defaults listed against this subject". Counted
+    naively that is a default the borrower does not have, and it reaches the memo
+    carrying a provenance pointing at a document that says the opposite."""
+    report = EquifaxExtraction.model_validate({
+        "credit_score": 812,
+        "listed_defaults": [{"date_listed": None, "default_type": None,
+                             "amount": None, "status": None}],
+    })
+
+    assert report.listed_defaults == []
+
+
+def test_a_real_record_is_kept_when_only_some_fields_are_null():
+    report = EquifaxExtraction.model_validate({
+        "listed_defaults": [{"date_listed": None, "default_type": "Telco service default",
+                             "amount": None, "status": None}],
+    })
+
+    assert len(report.listed_defaults) == 1
+
+
+def test_empty_credit_account_entries_are_dropped_too():
+    report = EquifaxExtraction.model_validate({
+        "credit_accounts": [
+            {"provider": None, "account_type": None, "credit_limit": None, "date_opened": None},
+            {"provider": "Corella Bank", "account_type": "Credit card",
+             "credit_limit": 800000, "date_opened": "2019-04-11"},
+        ],
+    })
+
+    assert len(report.credit_accounts) == 1
+    assert report.credit_accounts[0].provider == "Corella Bank"
+
+
+def test_the_defaults_count_for_a_clean_report_is_zero(extractor):
+    """The end-to-end form of the same guard, through the field the ledger uses."""
+    from src.agents.evidence import EvidenceAgent
+
+    loaded = first_of_type("APP-2026-0001", "equifax", extractor)
+    data = extractor.extract(loaded.parsed, "equifax").data
+
+    assert EvidenceAgent._field_from(
+        EvidenceAgent(extractor=extractor), "borrower_1_credit_defaults_count", 1, data
+    ) == 0
