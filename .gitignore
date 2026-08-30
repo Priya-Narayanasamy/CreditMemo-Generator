@@ -9,3 +9,6 @@ data/deals.db
 data/documents/
 *.docx
 .DS_Store
+
+output/
+checkpoints.sqlite

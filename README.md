@@ -29,19 +29,97 @@ pytest                            # full test suite
 streamlit run app.py              # the UI
 ```
 
-## Build status
+## How it works
 
-| Phase | Status |
-|---|---|
-| 1. Synthetic data (database, documents, seeded defects) | done |
-| 2. State, evidence ledger, calculators, policy evaluator | not started |
-| 3. Tools: database, documents, parsing, extraction | not started |
-| 4. Evidence agent | not started |
-| 5. Analysis, drafting, review agents | not started |
-| 6. Graph assembly with both interrupt types | not started |
-| 7. Templates and renderer | not started |
-| 8. Streamlit UI | not started |
-| 9. Error-handling hardening against the seeded defects | not started |
+An analyst picks an application. The graph then:
+
+1. selects the memo template from loan purpose and applicant structure
+2. pulls the application record from SQLite
+3. finds, parses and classifies the supporting documents by content
+4. verifies name, date of birth and address in each document against the record
+5. extracts credit history and annualises PAYG income from the payslips
+6. computes LVR and serviceability with pure functions
+7. evaluates the versioned policy ruleset
+8. drafts three narrative sections
+9. reviews the draft against the ledger
+10. stops for approval before writing anything
+
+It halts at one of two interrupts, kept separate in state:
+
+- **`ESCALATION`** - it cannot proceed. Evidence is missing, or two sources
+  disagree. The analyst supplies a value, or abandons the run.
+- **`APPROVAL`** - it has finished and wants permission to write. The analyst
+  approves, edits or rejects.
+
+### The evidence ledger
+
+Every value that may appear in the memo lives in the ledger with a `Provenance`:
+a database table and column, a filename and page and document type, or the ledger
+fields it was computed from. The Jinja templates can only reach a value through
+`f()`, which raises `UnsourcedFigure` if the field is not in the ledger - a
+missing key fails the render rather than producing a blank cell, because a blank
+cell in a credit memo reads as a fact.
+
+The reviewer closes the loop from the other side: every number-like token in the
+narrative must exist in the ledger. That check is a pure function, and it catches
+a figure that is arithmetically correct but unsourced - which is exactly what a
+model doing its own arithmetic produces.
+
+### Gaps and conflicts
+
+A **gap** is a field with no value found. It is retried within a per-field budget,
+and the outcome of each attempt is stored, so a document that parsed cleanly
+without the field is never retried while one that failed to parse may be.
+
+A **conflict** is two sources giving different values for the same field. It goes
+straight to escalation, consumes no retry budget, and evicts the field from the
+ledger - retrying cannot resolve a disagreement, and a disputed value must not sit
+in the ledger looking resolved.
+
+## Deviations from the build spec
+
+Both are cases where the spec and `CLAUDE.md` could not both be satisfied.
+`CLAUDE.md` won each time.
+
+| Spec says | This repository | Why |
+|---|---|---|
+| Policy rules carry `severity: hard_fail` | Rules carry `finding_type` of `discrepancy` / `missing` / `note`; results are `within_parameter` / `outside_parameter` / `not_evaluable` | `CLAUDE.md` forbids labelling a finding pass, fail, breach or hard fail |
+| The drafting agent writes a `recommendation` section | The third section is `outstanding_items` | `CLAUDE.md` forbids producing a recommendation |
+
+Two other choices worth naming:
+
+- The calculators run inside the evidence loop rather than the analysis agent, so
+  the ledger is complete before anything reads it. Analysis evaluates policy and
+  computes nothing.
+- `computed_lvr` disagreeing with `lvr_stated` is treated as a conflict rather
+  than a policy finding. They are two sources for one fact, so the agent does not
+  pick between them.
+
+## Running without credentials
+
+The graph runs end to end offline. `LocalTableExtractor` reads the documents'
+table structure directly and `OfflineDrafter` assembles narrative from the ledger,
+both deterministic. This is what the tests use, so the determinism and defect
+cases are exact rather than probabilistic - it is a test double and an offline
+fallback, not a second production path. With `NEBIUS_API_KEY` and
+`ANTHROPIC_API_KEY` set, extraction goes to Nebius and drafting and review to
+Claude. The UI says which mode it is in.
+
+Every model call is logged to `logs/model_calls.jsonl` with prompt, response and
+token counts, and API keys are redacted before anything is written.
+
+## Tests
+
+```
+pytest                              # 376 tests
+pytest tests/test_defects.py        # one end-to-end case per seeded defect
+pytest tests/test_determinism.py    # 10 runs, zero figure variance
+```
+
+The defect tests read their expectations from `data/defects.json` rather than
+hard-coding them, and each asserts the negative as well: that fields unaffected by
+the defect still resolved, and that one field's exhausted budget did not consume
+another's.
 
 ## The synthetic data set
 
