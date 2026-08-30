@@ -1,0 +1,498 @@
+{
+  "note": "Ground truth for the synthetic data set. Tests read expectations from here rather than hard-coding them. `manifest` records what each unhelpfully named file actually is, for test assertions only - the agent must classify from content.",
+  "defects": [
+    {
+      "application_number": "APP-2026-0001",
+      "category": "clean",
+      "description": "Happy path. Single owner-occupied applicant, all documents present and consistent.",
+      "affected_fields": [],
+      "expected_outcome": "approval",
+      "expected_reason": null
+    },
+    {
+      "application_number": "APP-2026-0002",
+      "category": "clean",
+      "description": "Happy path. Joint owner-occupied applicants, both fully documented.",
+      "affected_fields": [],
+      "expected_outcome": "approval",
+      "expected_reason": null
+    },
+    {
+      "application_number": "APP-2026-0003",
+      "category": "missing",
+      "description": "No payslips generated for the second applicant, Nathan Halloway.",
+      "affected_fields": [
+        "borrower_2_payg_income"
+      ],
+      "expected_outcome": "escalation",
+      "expected_reason": "not_found"
+    },
+    {
+      "application_number": "APP-2026-0004",
+      "category": "conflict",
+      "description": "KYC document names the subject Katherine Ellingham; the borrower record says Kathryn Ellingham.",
+      "affected_fields": [
+        "borrower_1_full_name"
+      ],
+      "expected_outcome": "escalation",
+      "expected_reason": "conflict"
+    },
+    {
+      "application_number": "APP-2026-0005",
+      "category": "internally_inconsistent",
+      "description": "Payslip year-to-date gross figures do not form a sequence; slip 2 is out of step with slips 1 and 3.",
+      "affected_fields": [
+        "borrower_1_payg_income"
+      ],
+      "expected_outcome": "escalation",
+      "expected_reason": "conflict"
+    },
+    {
+      "application_number": "APP-2026-0006",
+      "category": "conflict",
+      "description": "lvr_stated in the database is 0.78; total_loan_amount divided by valuation_amount is 0.85.",
+      "affected_fields": [
+        "computed_lvr"
+      ],
+      "expected_outcome": "escalation",
+      "expected_reason": "conflict"
+    },
+    {
+      "application_number": "APP-2026-0007",
+      "category": "unreadable",
+      "description": "The credit report for Beatrix Lindqvist is written as a corrupt, unparseable PDF.",
+      "affected_fields": [
+        "borrower_1_credit_score"
+      ],
+      "expected_outcome": "escalation",
+      "expected_reason": "parse_failed"
+    },
+    {
+      "application_number": "APP-2026-0008",
+      "category": "conflict",
+      "description": "Credit report states the subject date of birth as 30/01/1984; the borrower record says 01/03/1984.",
+      "affected_fields": [
+        "borrower_1_date_of_birth"
+      ],
+      "expected_outcome": "escalation",
+      "expected_reason": "conflict"
+    }
+  ],
+  "manifest": {
+    "APP-2026-0001": [
+      {
+        "filename": "IMG_8871.pdf",
+        "document_type": "kyc",
+        "borrower": "Daniel Okonkwo",
+        "borrower_position": 1,
+        "readable": true
+      },
+      {
+        "filename": "attachment(3).pdf",
+        "document_type": "payslip",
+        "borrower": "Daniel Okonkwo",
+        "borrower_position": 1,
+        "readable": true
+      },
+      {
+        "filename": "doc20260114_2.pdf",
+        "document_type": "payslip",
+        "borrower": "Daniel Okonkwo",
+        "borrower_position": 1,
+        "readable": true
+      },
+      {
+        "filename": "scan0002_001.pdf",
+        "document_type": "payslip",
+        "borrower": "Daniel Okonkwo",
+        "borrower_position": 1,
+        "readable": true
+      },
+      {
+        "filename": "scan_0043.pdf",
+        "document_type": "equifax",
+        "borrower": "Daniel Okonkwo",
+        "borrower_position": 1,
+        "readable": true
+      }
+    ],
+    "APP-2026-0002": [
+      {
+        "filename": "20260118_142233.pdf",
+        "document_type": "equifax",
+        "borrower": "Thomas Raghunathan",
+        "borrower_position": 2,
+        "readable": true
+      },
+      {
+        "filename": "Document1.pdf",
+        "document_type": "payslip",
+        "borrower": "Thomas Raghunathan",
+        "borrower_position": 2,
+        "readable": true
+      },
+      {
+        "filename": "IMG_0117.pdf",
+        "document_type": "equifax",
+        "borrower": "Priyanka Raghunathan",
+        "borrower_position": 1,
+        "readable": true
+      },
+      {
+        "filename": "IMG_8871.pdf",
+        "document_type": "payslip",
+        "borrower": "Priyanka Raghunathan",
+        "borrower_position": 1,
+        "readable": true
+      },
+      {
+        "filename": "attachment(3).pdf",
+        "document_type": "kyc",
+        "borrower": "Thomas Raghunathan",
+        "borrower_position": 2,
+        "readable": true
+      },
+      {
+        "filename": "doc20260114_2.pdf",
+        "document_type": "payslip",
+        "borrower": "Thomas Raghunathan",
+        "borrower_position": 2,
+        "readable": true
+      },
+      {
+        "filename": "file_copy_2.pdf",
+        "document_type": "kyc",
+        "borrower": "Priyanka Raghunathan",
+        "borrower_position": 1,
+        "readable": true
+      },
+      {
+        "filename": "scan0002_001.pdf",
+        "document_type": "payslip",
+        "borrower": "Priyanka Raghunathan",
+        "borrower_position": 1,
+        "readable": true
+      },
+      {
+        "filename": "scan_0043.pdf",
+        "document_type": "payslip",
+        "borrower": "Thomas Raghunathan",
+        "borrower_position": 2,
+        "readable": true
+      },
+      {
+        "filename": "scan_0044.pdf",
+        "document_type": "payslip",
+        "borrower": "Priyanka Raghunathan",
+        "borrower_position": 1,
+        "readable": true
+      }
+    ],
+    "APP-2026-0003": [
+      {
+        "filename": "20260118_142233.pdf",
+        "document_type": "equifax",
+        "borrower": "Nathan Halloway",
+        "borrower_position": 2,
+        "readable": true
+      },
+      {
+        "filename": "Document1.pdf",
+        "document_type": "payslip",
+        "borrower": "Gemma Halloway",
+        "borrower_position": 1,
+        "readable": true
+      },
+      {
+        "filename": "IMG_8871.pdf",
+        "document_type": "kyc",
+        "borrower": "Gemma Halloway",
+        "borrower_position": 1,
+        "readable": true
+      },
+      {
+        "filename": "attachment(3).pdf",
+        "document_type": "kyc",
+        "borrower": "Nathan Halloway",
+        "borrower_position": 2,
+        "readable": true
+      },
+      {
+        "filename": "doc20260114_2.pdf",
+        "document_type": "payslip",
+        "borrower": "Gemma Halloway",
+        "borrower_position": 1,
+        "readable": true
+      },
+      {
+        "filename": "scan0002_001.pdf",
+        "document_type": "equifax",
+        "borrower": "Gemma Halloway",
+        "borrower_position": 1,
+        "readable": true
+      },
+      {
+        "filename": "scan_0043.pdf",
+        "document_type": "payslip",
+        "borrower": "Gemma Halloway",
+        "borrower_position": 1,
+        "readable": true
+      }
+    ],
+    "APP-2026-0004": [
+      {
+        "filename": "IMG_8871.pdf",
+        "document_type": "kyc",
+        "borrower": "Kathryn Ellingham",
+        "borrower_position": 1,
+        "readable": true
+      },
+      {
+        "filename": "attachment(3).pdf",
+        "document_type": "payslip",
+        "borrower": "Kathryn Ellingham",
+        "borrower_position": 1,
+        "readable": true
+      },
+      {
+        "filename": "doc20260114_2.pdf",
+        "document_type": "equifax",
+        "borrower": "Kathryn Ellingham",
+        "borrower_position": 1,
+        "readable": true
+      },
+      {
+        "filename": "scan0002_001.pdf",
+        "document_type": "payslip",
+        "borrower": "Kathryn Ellingham",
+        "borrower_position": 1,
+        "readable": true
+      },
+      {
+        "filename": "scan_0043.pdf",
+        "document_type": "payslip",
+        "borrower": "Kathryn Ellingham",
+        "borrower_position": 1,
+        "readable": true
+      }
+    ],
+    "APP-2026-0005": [
+      {
+        "filename": "IMG_8871.pdf",
+        "document_type": "payslip",
+        "borrower": "Hugo Vandermeer",
+        "borrower_position": 1,
+        "readable": true
+      },
+      {
+        "filename": "attachment(3).pdf",
+        "document_type": "payslip",
+        "borrower": "Hugo Vandermeer",
+        "borrower_position": 1,
+        "readable": true
+      },
+      {
+        "filename": "doc20260114_2.pdf",
+        "document_type": "payslip",
+        "borrower": "Hugo Vandermeer",
+        "borrower_position": 1,
+        "readable": true
+      },
+      {
+        "filename": "scan0002_001.pdf",
+        "document_type": "equifax",
+        "borrower": "Hugo Vandermeer",
+        "borrower_position": 1,
+        "readable": true
+      },
+      {
+        "filename": "scan_0043.pdf",
+        "document_type": "kyc",
+        "borrower": "Hugo Vandermeer",
+        "borrower_position": 1,
+        "readable": true
+      }
+    ],
+    "APP-2026-0006": [
+      {
+        "filename": "20260118_142233.pdf",
+        "document_type": "payslip",
+        "borrower": "Julian Whitcombe",
+        "borrower_position": 2,
+        "readable": true
+      },
+      {
+        "filename": "Document1.pdf",
+        "document_type": "equifax",
+        "borrower": "Julian Whitcombe",
+        "borrower_position": 2,
+        "readable": true
+      },
+      {
+        "filename": "IMG_0117.pdf",
+        "document_type": "kyc",
+        "borrower": "Aroha Whitcombe",
+        "borrower_position": 1,
+        "readable": true
+      },
+      {
+        "filename": "IMG_8871.pdf",
+        "document_type": "payslip",
+        "borrower": "Julian Whitcombe",
+        "borrower_position": 2,
+        "readable": true
+      },
+      {
+        "filename": "attachment(3).pdf",
+        "document_type": "payslip",
+        "borrower": "Aroha Whitcombe",
+        "borrower_position": 1,
+        "readable": true
+      },
+      {
+        "filename": "doc20260114_2.pdf",
+        "document_type": "equifax",
+        "borrower": "Aroha Whitcombe",
+        "borrower_position": 1,
+        "readable": true
+      },
+      {
+        "filename": "file_copy_2.pdf",
+        "document_type": "payslip",
+        "borrower": "Julian Whitcombe",
+        "borrower_position": 2,
+        "readable": true
+      },
+      {
+        "filename": "scan0002_001.pdf",
+        "document_type": "payslip",
+        "borrower": "Aroha Whitcombe",
+        "borrower_position": 1,
+        "readable": true
+      },
+      {
+        "filename": "scan_0043.pdf",
+        "document_type": "kyc",
+        "borrower": "Julian Whitcombe",
+        "borrower_position": 2,
+        "readable": true
+      },
+      {
+        "filename": "scan_0044.pdf",
+        "document_type": "payslip",
+        "borrower": "Aroha Whitcombe",
+        "borrower_position": 1,
+        "readable": true
+      }
+    ],
+    "APP-2026-0007": [
+      {
+        "filename": "20260118_142233.pdf",
+        "document_type": "kyc",
+        "borrower": "Beatrix Lindqvist",
+        "borrower_position": 1,
+        "readable": true
+      },
+      {
+        "filename": "Document1.pdf",
+        "document_type": "payslip",
+        "borrower": "Marcus Lindqvist",
+        "borrower_position": 2,
+        "readable": true
+      },
+      {
+        "filename": "IMG_0117.pdf",
+        "document_type": "payslip",
+        "borrower": "Beatrix Lindqvist",
+        "borrower_position": 1,
+        "readable": true
+      },
+      {
+        "filename": "IMG_8871.pdf",
+        "document_type": "equifax",
+        "borrower": "Beatrix Lindqvist",
+        "borrower_position": 1,
+        "readable": false
+      },
+      {
+        "filename": "attachment(3).pdf",
+        "document_type": "kyc",
+        "borrower": "Marcus Lindqvist",
+        "borrower_position": 2,
+        "readable": true
+      },
+      {
+        "filename": "doc20260114_2.pdf",
+        "document_type": "equifax",
+        "borrower": "Marcus Lindqvist",
+        "borrower_position": 2,
+        "readable": true
+      },
+      {
+        "filename": "file_copy_2.pdf",
+        "document_type": "payslip",
+        "borrower": "Marcus Lindqvist",
+        "borrower_position": 2,
+        "readable": true
+      },
+      {
+        "filename": "scan0002_001.pdf",
+        "document_type": "payslip",
+        "borrower": "Beatrix Lindqvist",
+        "borrower_position": 1,
+        "readable": true
+      },
+      {
+        "filename": "scan_0043.pdf",
+        "document_type": "payslip",
+        "borrower": "Marcus Lindqvist",
+        "borrower_position": 2,
+        "readable": true
+      },
+      {
+        "filename": "scan_0044.pdf",
+        "document_type": "payslip",
+        "borrower": "Beatrix Lindqvist",
+        "borrower_position": 1,
+        "readable": true
+      }
+    ],
+    "APP-2026-0008": [
+      {
+        "filename": "IMG_8871.pdf",
+        "document_type": "payslip",
+        "borrower": "Simone Achterberg",
+        "borrower_position": 1,
+        "readable": true
+      },
+      {
+        "filename": "attachment(3).pdf",
+        "document_type": "payslip",
+        "borrower": "Simone Achterberg",
+        "borrower_position": 1,
+        "readable": true
+      },
+      {
+        "filename": "doc20260114_2.pdf",
+        "document_type": "kyc",
+        "borrower": "Simone Achterberg",
+        "borrower_position": 1,
+        "readable": true
+      },
+      {
+        "filename": "scan0002_001.pdf",
+        "document_type": "payslip",
+        "borrower": "Simone Achterberg",
+        "borrower_position": 1,
+        "readable": true
+      },
+      {
+        "filename": "scan_0043.pdf",
+        "document_type": "equifax",
+        "borrower": "Simone Achterberg",
+        "borrower_position": 1,
+        "readable": true
+      }
+    ]
+  }
+}
