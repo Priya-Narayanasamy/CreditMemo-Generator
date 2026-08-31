@@ -262,8 +262,16 @@ if kind == "ESCALATION":
     st.subheader(":red[Escalation]")
     st.write(current.escalation.summary)
 
+    # Not every escalation is about an unresolved ledger field. Drafting escalates
+    # when the model is unreachable, and there is no value for the analyst to
+    # supply in that case - only something to be told.
+    if not any(name in current.unresolved for name in current.escalation.fields):
+        st.code(current.escalation.detail, language=None)
+
     for field_name in current.escalation.fields:
-        entry = current.unresolved[field_name]
+        entry = current.unresolved.get(field_name)
+        if entry is None:
+            continue
 
         with st.expander(f"{field_name} - {entry.reason}", expanded=True):
             st.code(entry.describe(), language=None)

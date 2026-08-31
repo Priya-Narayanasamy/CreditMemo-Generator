@@ -230,3 +230,41 @@ def test_clearing_returns_to_the_picker(app):
 
     assert app.session_state["memo_state"] is None
     assert any("Choose an application" in element.value for element in app.info)
+
+
+# --- An escalation that is not about a ledger field -------------------------
+
+
+def test_a_drafting_failure_renders_without_crashing(app, monkeypatch):
+    """Drafting escalates when the model is unreachable, naming `draft_sections`,
+    which is not a field in the ledger. The escalation panel used to look every
+    escalated field up in state.unresolved and raise KeyError."""
+    from src.agents import drafting as drafting_module
+
+    def unreachable(self, brief):
+        raise RuntimeError("Error code: 400 - credit balance is too low")
+
+    monkeypatch.setattr(drafting_module.OfflineDrafter, "file_overview", unreachable)
+
+    run_application(app, "APP-2026-0001")
+
+    assert not app.exception
+    state = app.session_state["memo_state"]
+    assert state.escalation is not None
+    assert state.escalation.fields == ["draft_sections"]
+    assert any("credit balance" in element.value for element in app.code)
+
+
+def test_a_drafting_failure_offers_no_value_to_supply(app, monkeypatch):
+    """There is nothing for the analyst to type in - only something to be told."""
+    from src.agents import drafting as drafting_module
+
+    def unreachable(self, brief):
+        raise RuntimeError("model unreachable")
+
+    monkeypatch.setattr(drafting_module.OfflineDrafter, "file_overview", unreachable)
+
+    run_application(app, "APP-2026-0001")
+
+    assert "Supply this value" not in [b.label for b in app.button]
+    assert "Abandon this run" in [b.label for b in app.button]
