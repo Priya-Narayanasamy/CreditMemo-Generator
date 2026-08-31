@@ -287,17 +287,22 @@ SECTION_PROMPTS = {
 }
 
 
-class ClaudeDrafter:
-    """The production drafter. Structured output, temperature zero, every call logged."""
+class ModelDrafter:
+    """The production drafter. Structured output, every call logged.
 
-    name = "claude"
+    Provider-agnostic: it takes whatever chat model `drafting_model()` returns,
+    so switching between Anthropic and Nebius is a config change and nothing
+    here moves.
+    """
 
     def __init__(self, model=None) -> None:
-        from config import DRAFTING_MODEL
+        from config import DRAFTING_MODEL, DRAFTING_PROVIDER
         from src.tools.models import drafting_model
 
         self._model = model or drafting_model()
         self.model_id = DRAFTING_MODEL
+        self.provider = DRAFTING_PROVIDER
+        self.name = DRAFTING_PROVIDER
 
     def _section(self, section: str, brief: str, schema):
         from src.tools.models import logged_call
@@ -307,7 +312,7 @@ class ClaudeDrafter:
 
         return logged_call(
             purpose=f"draft_{section}",
-            provider="anthropic",
+            provider=self.provider,
             model=self.model_id,
             prompt=prompt,
             invoke=lambda: structured.invoke(prompt),
@@ -324,10 +329,10 @@ class ClaudeDrafter:
 
 
 def default_drafter(state: MemoState) -> NarrativeDrafter:
-    from config import ANTHROPIC_API_KEY
+    from src.tools.models import drafting_credentials_present
 
-    if ANTHROPIC_API_KEY:
-        return ClaudeDrafter()
+    if drafting_credentials_present():
+        return ModelDrafter()
     return OfflineDrafter(state)
 
 

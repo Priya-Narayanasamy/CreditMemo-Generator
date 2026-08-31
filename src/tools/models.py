@@ -22,11 +22,13 @@ from pydantic import BaseModel
 from config import (
     ANTHROPIC_API_KEY,
     DRAFTING_MODEL,
+    DRAFTING_PROVIDER,
     EXTRACTION_MODEL,
     MODEL_CALL_LOG,
     NEBIUS_API_KEY,
     NEBIUS_BASE_URL,
     REVIEW_MODEL,
+    REVIEW_PROVIDER,
     TEMPERATURE,
 )
 
@@ -186,20 +188,56 @@ def _anthropic(model: str):
     )
 
 
+def _nebius(model: str):
+    """A Nebius-hosted model, used for drafting or review when so configured."""
+    if not NEBIUS_API_KEY:
+        raise ModelUnavailable(
+            "NEBIUS_API_KEY is not set. Copy .env.example to .env and fill it in."
+        )
+
+    from langchain_openai import ChatOpenAI
+
+    return ChatOpenAI(
+        model=model,
+        temperature=TEMPERATURE,
+        api_key=NEBIUS_API_KEY,
+        base_url=NEBIUS_BASE_URL,
+        timeout=180,
+        max_retries=2,
+    )
+
+
+def _for_provider(provider: str, model: str):
+    if provider == "nebius":
+        return _nebius(model)
+    if provider == "anthropic":
+        return _anthropic(model)
+    raise ValueError(f"unknown model provider {provider!r}; use 'nebius' or 'anthropic'")
+
+
 def drafting_model():
-    return _anthropic(DRAFTING_MODEL)
+    return _for_provider(DRAFTING_PROVIDER, DRAFTING_MODEL)
 
 
 def review_model():
-    return _anthropic(REVIEW_MODEL)
+    return _for_provider(REVIEW_PROVIDER, REVIEW_MODEL)
+
+
+def drafting_credentials_present() -> bool:
+    """Whether the configured drafting provider can actually be called."""
+    return bool(NEBIUS_API_KEY if DRAFTING_PROVIDER == "nebius" else ANTHROPIC_API_KEY)
+
+
+def review_credentials_present() -> bool:
+    return bool(NEBIUS_API_KEY if REVIEW_PROVIDER == "nebius" else ANTHROPIC_API_KEY)
 
 
 def model_identifiers() -> dict[str, str]:
     """Recorded in the memo footer, so a draft can be traced to what produced it."""
     return {
         "extraction": f"nebius/{EXTRACTION_MODEL}",
-        "drafting": f"anthropic/{DRAFTING_MODEL}",
-        "review": f"anthropic/{REVIEW_MODEL}",
+        "drafting": f"{DRAFTING_PROVIDER}/{DRAFTING_MODEL}",
+        "review": f"{REVIEW_PROVIDER}/{REVIEW_MODEL}",
     }
 
 

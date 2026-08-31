@@ -26,10 +26,12 @@ from config import (  # noqa: E402
     DB_PATH,
     DOCUMENTS_DIR,
     DRAFTING_MODEL,
+    DRAFTING_PROVIDER,
     EXTRACTION_MODEL,
     NEBIUS_API_KEY,
     NEBIUS_BASE_URL,
     REVIEW_MODEL,
+    REVIEW_PROVIDER,
 )
 
 OK, BAD, SKIP = "  ok  ", " FAIL ", " skip "
@@ -55,9 +57,17 @@ def check_data() -> None:
 def check_credentials() -> tuple[bool, bool]:
     nebius, anthropic = bool(NEBIUS_API_KEY), bool(ANTHROPIC_API_KEY)
     report(OK if nebius else SKIP, f"NEBIUS_API_KEY {'set' if nebius else 'not set - offline mode'}")
-    report(OK if anthropic else SKIP,
-           f"ANTHROPIC_API_KEY {'set' if anthropic else 'not set - offline mode'}")
-    return nebius, anthropic
+
+    anthropic_needed = "anthropic" in (DRAFTING_PROVIDER, REVIEW_PROVIDER)
+    if anthropic_needed:
+        report(OK if anthropic else BAD,
+               f"ANTHROPIC_API_KEY {'set' if anthropic else 'not set but required by the '
+               'configured provider'}")
+    else:
+        report(SKIP, "ANTHROPIC_API_KEY not needed - both providers are nebius")
+
+    drafting_ready = nebius if DRAFTING_PROVIDER == "nebius" else anthropic
+    return nebius, drafting_ready
 
 
 def check_extraction_model() -> None:
@@ -113,43 +123,48 @@ def check_extraction_call() -> None:
                    f"at confidence {classification.confidence}")
 
 
-def check_anthropic_call() -> None:
+def check_drafting_call() -> None:
     from src.tools.models import drafting_model
 
     try:
         response = drafting_model().invoke("Reply with the single word: ready")
         text = getattr(response, "content", str(response))
-        report(OK, f"drafting model {DRAFTING_MODEL} responded ({str(text)[:40].strip()})")
+        report(OK, f"drafting model {DRAFTING_PROVIDER}/{DRAFTING_MODEL} responded "
+                   f"({str(text)[:40].strip()})")
     except Exception as exc:  # noqa: BLE001
         message = str(exc)
-        report(BAD, f"drafting model {DRAFTING_MODEL} failed: {type(exc).__name__}: {message[:200]}")
+        report(BAD, f"drafting model {DRAFTING_PROVIDER}/{DRAFTING_MODEL} failed: "
+                    f"{type(exc).__name__}: {message[:200]}")
         if "temperature" in message.lower():
             print("        The current Claude models reject sampling parameters. "
                   "See the note in config.py.")
+        if "credit balance" in message.lower():
+            print("        Switch DRAFTING_PROVIDER / REVIEW_PROVIDER in config.py "
+                  "to 'nebius', or top up the Anthropic account.")
 
 
 def main() -> int:
-    print(f"Extraction  {EXTRACTION_MODEL}  via  {NEBIUS_BASE_URL}")
-    print(f"Drafting    {DRAFTING_MODEL}")
-    print(f"Review      {REVIEW_MODEL}")
+    print(f"Extraction  nebius/{EXTRACTION_MODEL}  via  {NEBIUS_BASE_URL}")
+    print(f"Drafting    {DRAFTING_PROVIDER}/{DRAFTING_MODEL}")
+    print(f"Review      {REVIEW_PROVIDER}/{REVIEW_MODEL}")
     print()
 
     check_data()
-    nebius, anthropic = check_credentials()
+    nebius, drafting_ready = check_credentials()
 
     if nebius:
         check_extraction_model()
         check_extraction_call()
-    if anthropic:
-        check_anthropic_call()
+    if drafting_ready:
+        check_drafting_call()
 
     print()
     if failures:
         print(f"{len(failures)} problem(s) found. The live path will not work until they are fixed.")
         return 1
 
-    if not (nebius and anthropic):
-        print("Offline mode is ready. Add both keys to .env for the live path.")
+    if not (nebius and drafting_ready):
+        print("Offline mode is ready. Add the keys the configured providers need.")
     else:
         print("Ready. Both live model paths are reachable.")
     return 0

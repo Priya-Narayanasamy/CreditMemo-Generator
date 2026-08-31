@@ -92,15 +92,17 @@ DRAFT
 """
 
 
-class ClaudeReviewer:
-    name = "claude"
+class ModelReviewer:
+    """Provider-agnostic reviewer. The deterministic checks stand either way."""
 
     def __init__(self, model=None) -> None:
-        from config import REVIEW_MODEL
+        from config import REVIEW_MODEL, REVIEW_PROVIDER
         from src.tools.models import review_model
 
         self._model = model or review_model()
         self.model_id = REVIEW_MODEL
+        self.provider = REVIEW_PROVIDER
+        self.name = REVIEW_PROVIDER
 
     def critique(self, sections: dict[str, str], brief: str) -> ReviewCritique:
         from src.tools.models import logged_call
@@ -112,7 +114,7 @@ class ClaudeReviewer:
         try:
             return logged_call(
                 purpose="review_draft",
-                provider="anthropic",
+                provider=self.provider,
                 model=self.model_id,
                 prompt=prompt,
                 invoke=lambda: structured.invoke(prompt),
@@ -122,10 +124,10 @@ class ClaudeReviewer:
 
 
 def default_reviewer() -> Reviewer:
-    from config import ANTHROPIC_API_KEY
+    from src.tools.models import review_credentials_present
 
-    if ANTHROPIC_API_KEY:
-        return ClaudeReviewer()
+    if review_credentials_present():
+        return ModelReviewer()
     return NoModelReviewer()
 
 

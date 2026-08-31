@@ -90,6 +90,8 @@ Both are cases where the spec and `CLAUDE.md` could not both be satisfied.
 |---|---|---|
 | Policy rules carry `severity: hard_fail` | Rules carry `finding_type` of `discrepancy` / `missing` / `note`; results are `within_parameter` / `outside_parameter` / `not_evaluable` | `CLAUDE.md` forbids labelling a finding pass, fail, breach or hard fail |
 | The drafting agent writes a `recommendation` section | The third section is `outstanding_items` | `CLAUDE.md` forbids producing a recommendation |
+| Drafting and review run on Anthropic Claude | Both run on Nebius by default | The Anthropic account has no credit. The provider is a config setting, not a hardcoded choice - see below |
+| Both models at temperature 0 | Nebius at 0; nothing sent to Anthropic | The current Claude models reject sampling parameters with a 400 |
 
 Two other choices worth naming:
 
@@ -99,6 +101,32 @@ Two other choices worth naming:
 - `computed_lvr` disagreeing with `lvr_stated` is treated as a conflict rather
   than a policy finding. They are two sources for one fact, so the agent does not
   pick between them.
+
+## Choosing a model provider
+
+Extraction is always Nebius, as the course brief requires. Drafting and review
+take whichever provider `config.py` names:
+
+```python
+DRAFTING_PROVIDER = "nebius"     # "nebius" | "anthropic"
+REVIEW_PROVIDER = "nebius"
+```
+
+Both default to Nebius because the Anthropic account has no credit, and a system
+that cannot draft is worse than one that drafts on a second-choice model.
+Switching back is one word each; the Anthropic model pins stay in `config.py` and
+a test keeps them valid.
+
+Nothing else moves with the switch. The drafter and reviewer take whatever chat
+model the binding returns, the schemas are the same, every call is logged the
+same way, and the rule that no figure may reach the narrative unless it is in the
+evidence ledger is enforced by a pure function either way. The memo footer records
+which provider actually produced the draft.
+
+Not every model handles the schemas. `RiskObservations` demands exactly three
+observations with constrained categories, and of the Nebius models tried, Qwen3-235B
+and DeepSeek-V4-Pro satisfy it while GLM-5.2 and Kimi-K3 do not. Run
+`python -m scripts.preflight` after any change to a model pin.
 
 ## Running without credentials
 

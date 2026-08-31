@@ -29,8 +29,33 @@ CHECKPOINT_DB = ROOT / "checkpoints.sqlite"
 # document coming back `unknown` and every run escalating, rather than as an
 # obvious error.
 EXTRACTION_MODEL = "Qwen/Qwen3-30B-A3B-Instruct-2507"   # Nebius Token Factory
-DRAFTING_MODEL = "claude-opus-5"                        # Anthropic
-REVIEW_MODEL = "claude-opus-5"                          # Anthropic
+
+# --- Drafting and review provider -------------------------------------------
+#
+# The build spec pins drafting and review to Anthropic Claude. That is still the
+# intended path and switching back is one setting each. They run on Nebius by
+# default here only because the Anthropic account has no credit, and a system
+# that cannot draft is worse than one that drafts on a second-choice model.
+#
+# Whichever provider is chosen, the constraints are unchanged: structured output
+# against the same schemas, every call logged, and no figure permitted into the
+# narrative that is not in the evidence ledger.
+
+DRAFTING_PROVIDER = "nebius"        # "nebius" | "anthropic"
+REVIEW_PROVIDER = "nebius"          # "nebius" | "anthropic"
+
+ANTHROPIC_DRAFTING_MODEL = "claude-opus-5"
+ANTHROPIC_REVIEW_MODEL = "claude-opus-5"
+
+NEBIUS_DRAFTING_MODEL = "Qwen/Qwen3-235B-A22B-Instruct-2507"
+NEBIUS_REVIEW_MODEL = "Qwen/Qwen3-235B-A22B-Instruct-2507"
+
+DRAFTING_MODEL = (
+    NEBIUS_DRAFTING_MODEL if DRAFTING_PROVIDER == "nebius" else ANTHROPIC_DRAFTING_MODEL
+)
+REVIEW_MODEL = (
+    NEBIUS_REVIEW_MODEL if REVIEW_PROVIDER == "nebius" else ANTHROPIC_REVIEW_MODEL
+)
 
 # Temperature zero, where the provider still accepts it.
 #

@@ -101,27 +101,49 @@ def test_model_strings_are_pinned_in_config_and_nowhere_else():
 def test_no_anthropic_model_id_carries_a_date_suffix():
     """Current Claude model IDs are complete as written. A date-suffixed variant
     is a stale recollection and resolves to nothing."""
-    for name in (config.DRAFTING_MODEL, config.REVIEW_MODEL):
+    for name in (config.ANTHROPIC_DRAFTING_MODEL, config.ANTHROPIC_REVIEW_MODEL):
         assert not re.search(r"-\d{8}$", name), f"{name} carries a date suffix"
 
 
 def test_the_pinned_anthropic_models_are_current():
+    """Whichever provider is selected, the Anthropic pins must stay valid so
+    switching back is a one-line change that works."""
     known = {
         "claude-opus-5", "claude-sonnet-5", "claude-fable-5",
         "claude-opus-4-8", "claude-opus-4-7", "claude-opus-4-6",
         "claude-sonnet-4-6", "claude-haiku-4-5",
     }
 
-    assert config.DRAFTING_MODEL in known
-    assert config.REVIEW_MODEL in known
+    assert config.ANTHROPIC_DRAFTING_MODEL in known
+    assert config.ANTHROPIC_REVIEW_MODEL in known
 
 
-def test_the_footer_records_which_model_produced_what():
+def test_the_selected_provider_picks_the_matching_model():
+    for provider, selected, nebius_pin, anthropic_pin in (
+        (config.DRAFTING_PROVIDER, config.DRAFTING_MODEL,
+         config.NEBIUS_DRAFTING_MODEL, config.ANTHROPIC_DRAFTING_MODEL),
+        (config.REVIEW_PROVIDER, config.REVIEW_MODEL,
+         config.NEBIUS_REVIEW_MODEL, config.ANTHROPIC_REVIEW_MODEL),
+    ):
+        assert provider in {"nebius", "anthropic"}
+        assert selected == (nebius_pin if provider == "nebius" else anthropic_pin)
+
+
+def test_an_unknown_provider_is_rejected():
+    from src.tools.models import _for_provider
+
+    with pytest.raises(ValueError, match="unknown model provider"):
+        _for_provider("openai", "gpt-whatever")
+
+
+def test_the_footer_records_the_provider_as_well_as_the_model():
+    """The memo footer must name what actually produced the draft, not what the
+    build spec originally pinned."""
     identifiers = model_identifiers()
 
-    assert identifiers["extraction"].startswith("nebius/")
-    assert identifiers["drafting"] == f"anthropic/{config.DRAFTING_MODEL}"
-    assert identifiers["review"] == f"anthropic/{config.REVIEW_MODEL}"
+    assert identifiers["extraction"] == f"nebius/{config.EXTRACTION_MODEL}"
+    assert identifiers["drafting"] == f"{config.DRAFTING_PROVIDER}/{config.DRAFTING_MODEL}"
+    assert identifiers["review"] == f"{config.REVIEW_PROVIDER}/{config.REVIEW_MODEL}"
 
 
 # --- Sampling parameters ----------------------------------------------------
@@ -129,11 +151,17 @@ def test_the_footer_records_which_model_produced_what():
 
 def test_no_temperature_is_sent_to_anthropic(monkeypatch):
     """The current Claude models reject sampling parameters with a 400. Sending
-    temperature=0 would fail every drafting and review call."""
+    temperature=0 would fail every drafting and review call.
+
+    Tested against the Anthropic binding directly, so it keeps guarding the
+    Anthropic path even while the configured provider is Nebius.
+    """
+    from src.tools.models import _anthropic
+
     monkeypatch.setattr("src.tools.models.ANTHROPIC_API_KEY", "test-key-not-real")
 
-    for factory in (drafting_model, review_model):
-        client = factory()
+    for model_id in (config.ANTHROPIC_DRAFTING_MODEL, config.ANTHROPIC_REVIEW_MODEL):
+        client = _anthropic(model_id)
         payload = client._get_request_payload([{"role": "user", "content": "hi"}])
 
         assert "temperature" not in payload, "temperature must not reach Anthropic"

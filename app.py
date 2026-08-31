@@ -12,7 +12,7 @@ from pathlib import Path
 
 import streamlit as st
 
-from config import ANTHROPIC_API_KEY, NEBIUS_API_KEY, POLICY_VERSION
+from config import NEBIUS_API_KEY, POLICY_VERSION
 from src.agents.drafting import OfflineDrafter, drafting_node
 from src.agents.evidence import EvidenceAgent
 from src.agents.review import NoModelReviewer, ReviewAgent
@@ -45,9 +45,16 @@ class OfflineGraph(MemoGraph):
         return drafting_node(state, OfflineDrafter(state), revision_notes=notes or None)
 
 
+def running_offline() -> bool:
+    """Whether any configured provider is missing its credentials."""
+    from src.tools.models import drafting_credentials_present, review_credentials_present
+
+    return not (NEBIUS_API_KEY and drafting_credentials_present()
+                and review_credentials_present())
+
+
 def build_graph() -> MemoGraph:
-    offline = not (NEBIUS_API_KEY and ANTHROPIC_API_KEY)
-    if offline:
+    if running_offline():
         return OfflineGraph(
             evidence_agent=EvidenceAgent(extractor=LocalTableExtractor()),
             review_agent=ReviewAgent(NoModelReviewer()),
@@ -81,12 +88,11 @@ with st.sidebar:
 
     selected = st.selectbox("Application", applications, index=0 if applications else None)
 
-    offline = not (NEBIUS_API_KEY and ANTHROPIC_API_KEY)
-    if offline:
+    if running_offline():
         st.warning(
             "Running offline. Extraction and narrative are produced by the "
-            "deterministic local stand-ins, not by the configured models. Set "
-            "NEBIUS_API_KEY and ANTHROPIC_API_KEY in .env for the real path."
+            "deterministic local stand-ins, not by the configured models. Fill in "
+            "the keys the configured providers need in .env for the real path."
         )
 
     if st.button("Run", type="primary", disabled=not selected, width="stretch"):

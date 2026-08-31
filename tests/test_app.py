@@ -43,6 +43,10 @@ def offline_credentials(monkeypatch):
 
     monkeypatch.setattr(config, "NEBIUS_API_KEY", "")
     monkeypatch.setattr(config, "ANTHROPIC_API_KEY", "")
+    # app.py asks src.tools.models whether the configured provider has its key,
+    # and that module bound the values at import time.
+    monkeypatch.setattr("src.tools.models.NEBIUS_API_KEY", "")
+    monkeypatch.setattr("src.tools.models.ANTHROPIC_API_KEY", "")
 
 
 @pytest.fixture()
